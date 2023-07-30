@@ -16,6 +16,7 @@ let scene = new THREE.Scene()
 scene.background = new THREE.Color(0xaaaaaa)
 let renderer
 let controls
+const loader = new GLTFLoader()
 
 let canvasRef = ref();
 
@@ -25,7 +26,8 @@ const workingMatrix = new THREE.Matrix4()
 const workingVector = new THREE.Vector3()
 
 //Room and Highlighted objects
-let room, highlighted, torch
+let room, highlighted, light
+const torch = new THREE.Group()
 
 const random = (min, max) => {
   return Math.random() * (max - min) + min;
@@ -51,9 +53,9 @@ scene.add(dirLight)
 let loop = () => {
   controls.update();
 
-  if(controller){
+  
     handleController(controller)
-  }
+
 
   renderer.render(scene, camera);
 };
@@ -67,29 +69,31 @@ let resizeCallback = () => {
 
 //XR Controller Builder function
 const buildController = (data, controller) =>{
-  let geometry, material, loader
+  let geometry, material
 
   switch ( data.targetRayMode){
     case "tracked-pointer":
-      loader = new GLTFLoader()
-      loader.load("/assets/flash-light.glb", (gltf)=>{
-        const flashLight = gltf.scene.children[2]
-        const scale = 0.6
-        flashLight.scale.set(scale, scale, scale)
+      
+      light = "/assets/flashlight.glb"
+      loader.load(light, (gltf)=>{
+        console.log(gltf.scene)
+        const flashLight = gltf.scene.children[0]
+        const scala = 0.03
+        flashLight.scale.set(scala, scala, scala)
+        flashLight.rotation.y += Math.PI/2
         controller.add(flashLight)
-        torch = new THREE.Group()
-        const spotlight = new THREE.SpotLight(0xffffff, 2, 12, Math.PI/15, 0.3)
-        let geometry = new THREE.CylinderBufferGeometry(0.03, 1, 5, 32, 5, true)
-        geometry.rotateX(Math.PI/2)
-        material = new SpotLightVolumetricMaterial()
-        const cone = new THREE.Mesh(geometry, material)
-        cone.translateZ(-2.6)
+        const spotlight = new THREE.SpotLight(0xffffff, 5, 12, Math.PI/15, 0.3)
+        // let geometry = new THREE.CylinderBufferGeometry(0.03, 1, 5, 32, 5, true)
+        // geometry.rotateX(Math.PI/2)
+        // material = new SpotLightVolumetricMaterial()
+        // const cone = new THREE.Mesh(geometry, material)
+        // cone.translateZ(-2.6)
 
         spotlight.position.set(0,0,0)
         spotlight.target.position.set(0, 0, -1)
         torch.add(spotlight.target)
         torch.add(spotlight)
-        torch.add(cone)
+        // torch.add(cone)
 
         controller.add(torch)
         torch.visible = false;
@@ -155,23 +159,23 @@ onMounted(() => {
   //XR Controllers
   controller = renderer.xr.getController(0)
 
+
   //XR Controller Events handling
  
   controller.addEventListener("selectstart", ()=>{
     controller.userData.selectPressed = true
-    if(torch){
       torch.visible = true
-    }
   })
   controller.addEventListener("selectend", ()=>{
     highlighted.visible = false
     controller.userData.selectPressed = false
-    if(torch){
+
       torch.visible = false
-    }
+
   })
   controller.addEventListener("connected", (event)=>{
-    buildController.call(event.data, controller)
+    console.log(event.data)
+    buildController(event.data, controller)
   })
   controller.addEventListener("disconnected", ()=>{
     while(controller.children.length >0) {
